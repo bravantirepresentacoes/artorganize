@@ -1,0 +1,14 @@
+import { useState } from 'react'
+import { money } from './hub'
+import { orderDay, orderTotal, salesForPeriod } from './nexusSalesModel'
+import type { NexusOrder } from './nexusSalesModel'
+export function NexusSales({orders,status,error,readAt,today,refresh,open,connect}:{orders:NexusOrder[];status:string;error:string;readAt:string;today:string;refresh:()=>void;open:(id:string)=>void;connect:()=>void}){
+ const [period,setPeriod]=useState<'today'|'month'|'all'>('month'),[search,setSearch]=useState(''),[limit,setLimit]=useState(50)
+ const filtered=salesForPeriod(orders,today,period).filter(o=>(o.client_name+' '+o.order_number).toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR'))).sort((a,b)=>orderDay(b.date).localeCompare(orderDay(a.date)))
+ return <section className="panel"><div className="panelHead"><div><p className="eyebrow">VENDAS DO NEXUS</p><h2>Pedidos da empresa conectada</h2></div><button disabled={status==='loading'} onClick={refresh}>Atualizar vendas</button></div><p className="muted">Total dos pedidos pela data do pedido, conforme o painel do Nexus. Não representa pagamentos recebidos. Os registros manuais abaixo não entram neste total.</p>
+ {status==='loading'?<p role="status">Consultando todos os pedidos do Nexus...</p>:status==='error'?<p role="alert">{error}</p>:status==='disconnected'?<p>{error||'Conecte o Nexus para consultar suas vendas.'} <button onClick={connect}>Conectar Nexus</button></p>:<>
+ <div className="stats"><article><span>Nexus · Hoje</span><strong>{money(orderTotal(salesForPeriod(orders,today,'today')))}</strong></article><article><span>Nexus · Mês</span><strong>{money(orderTotal(salesForPeriod(orders,today,'month')))}</strong></article><article><span>Nexus · Filtrado</span><strong>{money(orderTotal(filtered))}</strong></article></div>
+ <div className="quick"><input aria-label="Buscar vendas do Nexus" placeholder="Cliente ou número do pedido" value={search} onChange={e=>{setSearch(e.target.value);setLimit(50)}}/><select aria-label="Período das vendas do Nexus" value={period} onChange={e=>{setPeriod(e.target.value as typeof period);setLimit(50)}}><option value="today">Hoje</option><option value="month">Este mês</option><option value="all">Todo o histórico</option></select></div><p className="muted">{filtered.length} pedidos · Consultado às {new Date(readAt).toLocaleTimeString('pt-BR')}</p>
+ {filtered.slice(0,limit).map(o=><div className="dataRow" key={o.id}><div><strong>{o.order_number} · {o.client_name}</strong><small>{money(o.total)} · {orderDay(o.date).split('-').reverse().join('/')} · {o.status.toLowerCase().replaceAll('_',' ')}</small></div><button onClick={()=>open(o.id)}>Ver pedido</button></div>)}{!filtered.length&&<p>Nenhum pedido neste período.</p>}{filtered.length>limit&&<button onClick={()=>setLimit(n=>n+50)}>Mostrar mais pedidos</button>}
+ </>}</section>
+}

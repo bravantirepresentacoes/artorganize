@@ -1,0 +1,2 @@
+import { ApiRequest,ApiResponse,TOKEN_COOKIE,configured,cookies,decrypt } from '../_lib/bling.js'
+export default function handler(req:ApiRequest,res:ApiResponse){if(req.method!=='GET')return res.status(405).json({error:'Método não permitido.'});const ready=configured(),tokens=ready?decrypt(cookies(req)[TOKEN_COOKIE]):null;return res.status(200).json({configured:ready,connected:Boolean(tokens),expiresAt:tokens?.expires_at||null,scope:tokens?.scope||null})}

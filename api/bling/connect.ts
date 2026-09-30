@@ -1,0 +1,3 @@
+import { randomBytes } from 'node:crypto'
+import { ApiRequest,ApiResponse,BLING_AUTHORIZE_URL,STATE_COOKIE,configured,cookie } from '../_lib/bling.js'
+export default function handler(req:ApiRequest,res:ApiResponse){if(req.method!=='GET')return res.status(405).json({error:'Método não permitido.'});if(!configured())return res.redirect(302,'/?bling=config');const state=randomBytes(32).toString('base64url'),url=new URL(BLING_AUTHORIZE_URL);res.setHeader('Set-Cookie',cookie(STATE_COOKIE,state,600));url.searchParams.set('response_type','code');url.searchParams.set('client_id',process.env.BLING_CLIENT_ID!);url.searchParams.set('state',state);return res.redirect(302,url.toString())}

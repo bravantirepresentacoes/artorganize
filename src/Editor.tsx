@@ -1,0 +1,15 @@
+import { useEffect, useRef, useState } from 'react'
+import { X } from 'lucide-react'
+export type Field={name:string;label:string;value?:string|number|null;type?:string;required?:boolean;maxLength?:number;min?:number;max?:number;options?:[string,string][];readOnly?:boolean}
+export type EditorSpec={title:string;description?:string;fields:Field[];submitLabel?:string;save:(values:Record<string,string>)=>Promise<void>}
+export function useEditor(){
+ const [spec,setSpec]=useState<EditorSpec|null>(null)
+ return {open:setSpec,element:spec?<Editor key={spec.title+spec.fields.map(f=>String(f.value)).join('|')} spec={spec} close={()=>setSpec(null)}/>:null}
+}
+function Editor({spec,close}:{spec:EditorSpec;close:()=>void}){
+ const dialog=useRef<HTMLDialogElement>(null),guard=useRef(false)
+ const [values,setValues]=useState(()=>Object.fromEntries(spec.fields.map(f=>[f.name,String(f.value??'')]))),[busy,setBusy]=useState(false),[error,setError]=useState('')
+ useEffect(()=>{dialog.current?.showModal()},[])
+ async function save(e:React.FormEvent){e.preventDefault();if(guard.current)return;guard.current=true;setBusy(true);setError('');try{for(const field of spec.fields){if(field.required&&!values[field.name].trim())throw new Error('Preencha: '+field.label)}await spec.save(values);close()}catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar. Tente novamente.')}finally{guard.current=false;setBusy(false)}}
+ return <dialog ref={dialog} className="centralDialog" aria-labelledby="editor-title" onCancel={e=>{e.preventDefault();if(!busy)close()}}><form onSubmit={e=>void save(e)}><div className="dialogHeading"><div><p className="eyebrow">ORGANIZAR COM CLAREZA</p><h2 id="editor-title">{spec.title}</h2></div><button type="button" disabled={busy} aria-label="Fechar formulário" onClick={close}><X size={20}/></button></div>{spec.description&&<p className="muted">{spec.description}</p>}<div className="editorFields">{spec.fields.map(f=><label key={f.name}>{f.label}{f.required&&' *'}{f.options?<select required={f.required} disabled={busy||f.readOnly} value={values[f.name]} onChange={e=>setValues({...values,[f.name]:e.target.value})}>{f.options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>:f.type==='textarea'?<textarea rows={5} maxLength={f.maxLength??3000} required={f.required} readOnly={busy||f.readOnly} value={values[f.name]} onChange={e=>setValues({...values,[f.name]:e.target.value})}/>:<input type={f.type||'text'} step={f.type==='number'?'any':undefined} min={f.min} max={f.max} maxLength={f.maxLength??200} required={f.required} readOnly={busy||f.readOnly} value={values[f.name]} onChange={e=>setValues({...values,[f.name]:e.target.value})}/>}</label>)}</div>{error&&<p className="formError" role="alert">{error}</p>}<div className="dialogActions"><button type="button" disabled={busy} onClick={close}>Cancelar</button><button type="submit" disabled={busy}>{busy?'Salvando...':spec.submitLabel||'Salvar alterações'}</button></div></form></dialog>
+}
